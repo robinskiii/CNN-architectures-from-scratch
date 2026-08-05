@@ -34,9 +34,6 @@ class Dense(Layer):
         # He initialization
         self.weights = np.random.randn(input_dim, output_dim) * np.sqrt(2 / input_dim)
         self.bias = np.zeros((1, output_dim))
-        print("Weights: ",self.weights)
-        print("Bias: ",self.bias)
-
 
     def forward(self, input_data: np.ndarray) -> np.ndarray:
 
@@ -98,7 +95,15 @@ class Model:
         self.layers.append(layer)
 
     def predict(self, input_data: np.ndarray) -> np.ndarray:
-        return np.zeros(0)                                                                                      # TO DO
+        result = np.array([])
+        for i in range(input_data.shape[0]):
+            output = [input_data[i]]
+
+            for layer in self.layers:
+                output = layer.forward(output)
+
+            result =np.append(result, output)
+        return result                                                                                 # TO DO
 
     def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float) -> None:
         pass                                                                                                      # TO DO
@@ -117,14 +122,13 @@ def loss_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
 
 if __name__ == "__main__":
     # Initialize network
-    #model = Model()
-    #model.add(Dense(2, 3))
-    #model.add(ReLU())
-    #model.add(Dense(3, 1))
+    model = Model()
+    model.add(Dense(2, 3))
+    model.add(ReLU())
+    model.add(Dense(3, 1))
 
 
-    test_data = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    test_data = np.array([[1, 0], [0, 1], [1, 0], [1, 1]])
     test_labels = np.array([0, 1, 1, 0])
 
-    layer = Dense(2,1)
-    print(layer.forward(test_data))
+    print("Model prediction: ", model.predict(test_data))
