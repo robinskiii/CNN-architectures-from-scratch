@@ -11,10 +11,11 @@ class Layer:
     """
 
     @abstractmethod
-    def forward(self, input_data):
+    def forward(self, input_data: np.ndarray) -> np.ndarray:
         ...
 
-    def backward(self, output_error: float, learning_rate: float):
+    @abstractmethod
+    def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
         ...
 
 
@@ -23,15 +24,15 @@ class Dense(Layer):
     """
     Fully Connected Layer (basic NN architecture)
     """
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_dim: int, output_dim: int) -> None:
 
         super().__init__()
 
         # He initialization
-        self.weights = np.random.randn(input_size, output_size) * np.sqrt(2 / input_size)
-        self.bias = np.zeros((1, output_size))
+        self.weights = np.random.randn(input_dim, output_dim) * np.sqrt(2 / input_dim)
+        self.bias = np.zeros((1, output_dim))
 
-    def forward(self, input_data):
+    def forward(self, input_data: np.ndarray) -> np.ndarray:
 
         self.input = input_data
         # Y = X.W + b
@@ -39,7 +40,7 @@ class Dense(Layer):
 
         return self.output
 
-    def backward(self, output_error, learning_rate):
+    def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
 
         # Calculate gradients
         weights_error = np.dot(self.input.T, output_error)
@@ -61,22 +62,22 @@ class ReLU(Layer):
     Activation Layer
     """
 
-    def forward(self, input_data):
+    def forward(self, input_data: np.ndarray) -> np.ndarray:
 
         return np.maximum(0, input_data)
 
-    def backward(self, output_error, learning_rate):
-        pass                                                # TO DO
+    def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
+        return np.zeros(0)                                                                 # TO DO
 
 
 
 class Convolution(Layer):
-    pass                                                    # TO DO
+    pass                                                                                   # TO DO
 
 
 
 class Flatten(Layer):
-    pass                                                    # TO DO
+    pass                                                                                    # TO DO
 
 
 
@@ -84,26 +85,26 @@ class Model:
     """
     Neural Network composed of a sequence of Layers
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self.layers = []
 
-    def add(self, layer):
+    def add(self, layer : Layer) -> None:
         self.layers.append(layer)
 
-    def predict(self, input_data):
-        pass                                                          # TO DO
+    def predict(self, input_data: np.ndarray) -> np.ndarray:
+        return np.zeros(0)                                                                                      # TO DO
 
-    def train(self, x_train, y_train, epochs, learning_rate):
-        pass                                                          # TO DO
+    def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float) -> None:
+        pass                                                                                                      # TO DO
 
 
 
-def loss(y_true, y_pred):
+def loss(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return np.mean(np.power(y_true - y_pred, 2))
 
 
 
-def loss_derivative(y_true, y_pred):
+def loss_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     return 2 * (y_pred - y_true) / y_true.size
 
 
