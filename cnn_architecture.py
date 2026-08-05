@@ -24,6 +24,9 @@ class Dense(Layer):
     """
     Fully Connected Layer (basic NN architecture)
     """
+    weights: np.ndarray
+    bias: np.ndarray
+
     def __init__(self, input_dim: int, output_dim: int) -> None:
 
         super().__init__()
@@ -31,6 +34,9 @@ class Dense(Layer):
         # He initialization
         self.weights = np.random.randn(input_dim, output_dim) * np.sqrt(2 / input_dim)
         self.bias = np.zeros((1, output_dim))
+        print("Weights: ",self.weights)
+        print("Bias: ",self.bias)
+
 
     def forward(self, input_data: np.ndarray) -> np.ndarray:
 
@@ -111,4 +117,14 @@ def loss_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
 
 if __name__ == "__main__":
     # Initialize network
-    model = Model()
+    #model = Model()
+    #model.add(Dense(2, 3))
+    #model.add(ReLU())
+    #model.add(Dense(3, 1))
+
+
+    test_data = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    test_labels = np.array([0, 1, 1, 0])
+
+    layer = Dense(2,1)
+    print(layer.forward(test_data))
