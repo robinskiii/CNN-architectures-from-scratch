@@ -124,41 +124,30 @@ class Model:
         self.layers.append(layer)
 
     def predict(self, input_data: np.ndarray) -> np.ndarray:
-        result = np.array([])
-        for i in range(input_data.shape[0]):
-            output = np.array([input_data[i]])
 
-            for layer in self.layers:
-                output = layer.forward(output)
-                print(output)
-
-            result =np.append(result, output)
-        return result
+        output = input_data
+        for layer in self.layers:
+            output = layer.forward(output)
+        return output
 
     def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float) -> None:
 
         for i in range(epochs):
-            cost = 0
 
-            # iterating over each sample (image)
-            for j in range(x_train.shape[0]):
-                output = np.array([x_train[j]])
+            # forward prop
+            output = x_train
+            for layer in self.layers:
+                output = layer.forward(output)
 
-                # forward prop
-                for layer in self.layers:
-                    output = layer.forward(output)
+            # track the loss
+            cost = loss(y_train, output)
 
-                # track the loss
-                cost += loss(y_train[j], output)
+            # back prop
+            error = loss_derivative(y_train, output)
+            for layer in reversed(self.layers):
+                error = layer.backward(error, learning_rate)
 
-                # back prop
-                error = loss_derivative(y_train[j], output)
-                for layer in reversed(self.layers):
-                    error = layer.backward(error, learning_rate)
-
-
-
-            print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {cost} ")
+            print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {cost} ") # i aknowledge this is somewhat overkill
 
 
 
@@ -177,12 +166,17 @@ if __name__ == "__main__":
     model = Model()
     model.add(Dense(2, 3))
     model.add(ReLU(3))
-    model.add(Dense(3, 1))
+    model.add(Dense(3, 4))
+    model.add(ReLU(4))
+    model.add(Dense(4, 2))
+    model.add(ReLU(2))
+    model.add(Dense(2, 1))
 
 
     test_data = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
     test_labels = np.array([[0], [1], [1], [0]])
 
     print("\n",65*"=")
-    model.train(test_data, test_labels, epochs=50, learning_rate=0.1)
+    model.train(test_data, test_labels, epochs=50, learning_rate=0.2)
     print(65*"=","\n")
+    print(model.predict(test_data))
