@@ -7,14 +7,12 @@ import numpy as np
 
 class Layer:
     """
-
     Parent class for all types of layers.
 
     Attributes:
         input_dim: int
         output_dim: int
     """
-
     input_dim: int
     output_dim: int
 
@@ -36,8 +34,12 @@ class Dense(Layer):
     """
     Fully Connected Layer (basic NN architecture)
     """
+    input: np.ndarray
+
     weights: np.ndarray
     bias: np.ndarray
+
+    output: np.ndarray
 
     def __init__(self, input_dim: int, output_dim: int) -> None:
 
@@ -76,15 +78,21 @@ class ReLU(Layer):
     """
     Activation Layer
     """
+    input: np.ndarray
+    output: np.ndarray
+
     def __init__(self, dim: int) -> None:
         super().__init__(dim, dim) # ReLU goes from n dimensions to n dimensions
 
     def forward(self, input_data: np.ndarray) -> np.ndarray:
-
-        return np.maximum(0, input_data)
+        self.input = input_data
+        self.output = np.maximum(0, input_data)
+        return self.output
 
     def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
-        return np.zeros(0)                                                                 # TO DO
+        # Derivative of ReLU is 1 if input > 0, else 0
+        derivative = self.input > 0
+        return output_error * derivative
 
 
 
@@ -128,7 +136,29 @@ class Model:
         return result
 
     def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float) -> None:
-        pass                                                                                                      # TO DO
+
+        for i in range(epochs):
+            cost = 0
+
+            # iterating over each sample (image)
+            for j in range(x_train.shape[0]):
+                output = np.array([x_train[j]])
+
+                # forward prop
+                for layer in self.layers:
+                    output = layer.forward(output)
+
+                # track the loss
+                cost += loss(y_train[j], output)
+
+                # back prop
+                error = loss_derivative(y_train[j], output)
+                for layer in reversed(self.layers):
+                    error = layer.backward(error, learning_rate)
+
+
+
+            print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {cost} ")
 
 
 
@@ -151,6 +181,8 @@ if __name__ == "__main__":
 
 
     test_data = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-    test_labels = np.array([0, 1, 1, 0])
+    test_labels = np.array([[0], [1], [1], [0]])
 
-    model.predict(test_data)
+    print("\n",65*"=")
+    model.train(test_data, test_labels, epochs=50, learning_rate=0.1)
+    print(65*"=","\n")
