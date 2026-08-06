@@ -24,12 +24,16 @@ def open_random_image(path) -> None:
     positive_attrs = stats[stats == 1].index.tolist()
 
     # FEATURES OF CHOSEN IMAGE
-    print("\n", 40*"=")
-    print(9*"-", f" Stats for {image_filename} ", 9*"-")
-    print(40*"=")
+    print("\n")
+    print(104*"=")
+    print(40*"-", f" Stats for {image_filename} ", 40*"-")
+    print(104*"=")
+    print("\n")
     print(f"Positive Attributes: {len(positive_attrs)}")
+    print("\n")
     print(", ".join(attrs.replace("_", " ") for attrs in positive_attrs) if positive_attrs else "None")
-    print(40*"=")
+    print("\n")
+    print(104*"=")
 
     # EXTRACTING IMAGE FROM FOLDER
     try:
@@ -53,3 +57,4 @@ if __name__== '__main__':
     path = download_data()
 
     open_random_image(path)
+    print("\n")
