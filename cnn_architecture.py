@@ -7,8 +7,20 @@ import numpy as np
 
 class Layer:
     """
+
     Parent class for all types of layers.
+
+    Attributes:
+        input_dim: int
+        output_dim: int
     """
+
+    input_dim: int
+    output_dim: int
+
+    def __init__(self, input_dim: int, output_dim: int) -> None:
+        self.input_dim = input_dim
+        self.output_dim = output_dim
 
     @abstractmethod
     def forward(self, input_data: np.ndarray) -> np.ndarray:
@@ -29,7 +41,7 @@ class Dense(Layer):
 
     def __init__(self, input_dim: int, output_dim: int) -> None:
 
-        super().__init__()
+        super().__init__(input_dim, output_dim)
 
         # He initialization
         self.weights = np.random.randn(input_dim, output_dim) * np.sqrt(2 / input_dim)
@@ -64,6 +76,8 @@ class ReLU(Layer):
     """
     Activation Layer
     """
+    def __init__(self, dim: int) -> None:
+        super().__init__(dim, dim) # ReLU goes from n dimensions to n dimensions
 
     def forward(self, input_data: np.ndarray) -> np.ndarray:
 
@@ -88,22 +102,30 @@ class Model:
     """
     Neural Network composed of a sequence of Layers
     """
+    layers: list[Layer]
+
     def __init__(self) -> None:
         self.layers = []
 
     def add(self, layer : Layer) -> None:
+
+        # check input dimensions match output dimensions of previous layer
+        if self.layers and (self.layers[-1].output_dim != layer.input_dim):
+                raise ValueError
+
         self.layers.append(layer)
 
     def predict(self, input_data: np.ndarray) -> np.ndarray:
         result = np.array([])
         for i in range(input_data.shape[0]):
-            output = [input_data[i]]
+            output = np.array([input_data[i]])
 
             for layer in self.layers:
                 output = layer.forward(output)
+                print(output)
 
             result =np.append(result, output)
-        return result                                                                                 # TO DO
+        return result
 
     def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float) -> None:
         pass                                                                                                      # TO DO
@@ -124,11 +146,11 @@ if __name__ == "__main__":
     # Initialize network
     model = Model()
     model.add(Dense(2, 3))
-    model.add(ReLU())
+    model.add(ReLU(3))
     model.add(Dense(3, 1))
 
 
-    test_data = np.array([[1, 0], [0, 1], [1, 0], [1, 1]])
+    test_data = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
     test_labels = np.array([0, 1, 1, 0])
 
-    print("Model prediction: ", model.predict(test_data))
+    model.predict(test_data)
