@@ -11,15 +11,15 @@ class Layer:
     Parent class for all types of layers.
 
     Attributes:
-        input_dim: int
-        output_dim: int
+        input_shape: int | tuple[int, ...]
+        output_shape: int | tuple[int, ...]
     """
-    input_dim: int
-    output_dim: int
+    input_shape: int | tuple[int, ...]
+    output_shape: int | tuple[int, ...]
 
-    def __init__(self, input_dim: int, output_dim: int) -> None:
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+    def __init__(self, input_shape: int | tuple, output_shape: int | tuple) -> None:
+        self.input_shape = input_shape
+        self.output_shape = output_shape
 
     @abstractmethod
     def forward(self, input_data: np.ndarray) -> np.ndarray:
@@ -82,7 +82,7 @@ class ReLU(Layer):
     input: np.ndarray
     output: np.ndarray
 
-    def __init__(self, dim: int) -> None:
+    def __init__(self, dim: int | tuple) -> None:
         super().__init__(dim, dim) # ReLU goes from n dimensions to n dimensions
 
     def forward(self, input_data: np.ndarray) -> np.ndarray:
@@ -97,16 +97,6 @@ class ReLU(Layer):
 
 
 
-class Convolution(Layer):
-    pass                                                                                   # TO DO
-
-
-
-class Flatten(Layer):
-    pass                                                                                    # TO DO
-
-
-
 class Sigmoid(Layer):
     """
     Sigmoid Activation Layer (binary classification)
@@ -114,7 +104,7 @@ class Sigmoid(Layer):
     input: np.ndarray
     output: np.ndarray
 
-    def __init__(self, dim: int) -> None:
+    def __init__(self, dim: int | tuple) -> None:
         super().__init__(dim, dim)
 
     def forward(self, input_data: np.ndarray) -> np.ndarray:
@@ -126,6 +116,17 @@ class Sigmoid(Layer):
     def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
         derivative = self.output * (1 - self.output)
         return output_error * derivative
+
+
+
+class Convolution(Layer):
+    pass                                                                                   # TO DO
+
+
+
+class Flatten(Layer):
+    pass                                                                                    # TO DO
+
 
 
 
@@ -143,7 +144,7 @@ class Model:
     def add(self, layer : Layer) -> None:
 
         # check input dimensions match output dimensions of previous layer
-        if self.layers and (self.layers[-1].output_dim != layer.input_dim):
+        if self.layers and (self.layers[-1].output_shape != layer.input_shape):
                 raise ValueError
 
         self.layers.append(layer)
