@@ -13,6 +13,7 @@ class Layer:
     Attributes:
         input_shape: int | tuple[int, ...]
         output_shape: int | tuple[int, ...]
+
     """
     input_shape: int | tuple[int, ...]
     output_shape: int | tuple[int, ...]
@@ -34,6 +35,11 @@ class Layer:
 class Dense(Layer):
     """
     Fully Connected Layer (basic NN architecture)
+
+    Attributes:
+        weights: np.ndarray
+        bias: np.ndarray
+
     """
     input: np.ndarray
 
@@ -120,7 +126,67 @@ class Sigmoid(Layer):
 
 
 class Convolution(Layer):
-    pass                                                                                   # TO DO
+    """
+    2D Convolutional Layer
+
+    Data Shape: (channels, height, width)
+    Applies a given amount of matrix filters accross 2D data (treats RGB (channels data) independantly in image)
+
+    Attributes:
+        weights: np.ndarray   (4D data: (filters, channels, filter_height, filter_width))
+        bias: np.ndarray      (1D data: one bias value per filter)
+        filters: int
+        filter_size: int      (default = 3)
+        stride: int           (default = 1)
+        padding: int          (default = 1)
+
+    """
+    input : np.ndarray
+    input_padded: np.ndarray
+    output: np.ndarray
+
+    weights: np.ndarray
+    bias: np.ndarray
+
+    filters: int
+    filter_size: int
+    stride: int
+    padding: int
+
+    def __init__(self, input_shape: tuple[int, int, int], filters: int, filter_size: int = 3, stride: int = 1) -> None:
+
+        if filters < 1:
+            raise ValueError("Convolution layer must contain at least one filter")
+
+        if (filter_size % 2 == 0) or (filter_size < 3):
+            raise ValueError("Convolution filter size must be odd (3x3, 5x5, etc...)")
+
+        if stride < 1:
+            raise ValueError("Convolution stride must be at least 1")
+
+        # Calculate output dimensions
+        channels, in_height, in_width = input_shape
+        out_height = ((in_height - 1) // stride) + 1 # euclidian division to see how many strides fit in the input dimension
+        out_width = ((in_width - 1) // stride) + 1
+        output_shape = (filters, out_height, out_width)
+
+        super().__init__(input_shape, output_shape)
+
+        self.filters = filters
+        self.filter_size = filter_size
+        self.stride = stride
+        self.padding = int((filter_size - 1) / 2) # int since filter size is uneven
+
+        # He initialization for weights: (filters, channels, filter_height, filter_width)
+        num_input_variables = channels * (filter_size ** 2)
+        self.weights = np.random.randn(filters, channels, filter_size, filter_size) * np.sqrt(2 / num_input_variables)
+        self.bias = np.zeros((filters, 1, 1))
+
+
+    def forward(self, input_data: np.ndarray) -> np.ndarray:
+        return #todo
+
+    def backwards(self, #to do
 
 
 
