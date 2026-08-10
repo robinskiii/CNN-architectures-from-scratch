@@ -18,6 +18,9 @@ class Layer:
     input_shape: int | tuple[int, ...]
     output_shape: int | tuple[int, ...]
 
+    input: np.ndarray
+    output: np.ndarray
+
     def __init__(self, input_shape: int | tuple, output_shape: int | tuple) -> None:
         self.input_shape = input_shape
         self.output_shape = output_shape
@@ -41,18 +44,14 @@ class Dense(Layer):
         bias: np.ndarray
 
     """
-    input: np.ndarray
-
     weights: np.ndarray
     bias: np.ndarray
-
-    output: np.ndarray
 
     def __init__(self, input_dim: int, output_dim: int) -> None:
 
         super().__init__(input_dim, output_dim)
 
-        # He initialization
+        # He initialisation
         self.weights = np.random.randn(input_dim, output_dim) * np.sqrt(2 / input_dim)
         self.bias = np.zeros((1, output_dim))
 
@@ -85,9 +84,6 @@ class ReLU(Layer):
     """
     Activation Layer
     """
-    input: np.ndarray
-    output: np.ndarray
-
     def __init__(self, dim: int | tuple) -> None:
         super().__init__(dim, dim) # ReLU goes from n dimensions to n dimensions
 
@@ -107,9 +103,6 @@ class Sigmoid(Layer):
     """
     Sigmoid Activation Layer (binary classification)
     """
-    input: np.ndarray
-    output: np.ndarray
-
     def __init__(self, dim: int | tuple) -> None:
         super().__init__(dim, dim)
 
@@ -141,9 +134,10 @@ class Convolution(Layer):
         padding: int          (default = 1)
 
     """
-    input : np.ndarray
+    input_shape: tuple[int, int, int]
+    output_shape: tuple[int, int, int]
+
     input_padded: np.ndarray
-    output: np.ndarray
 
     weights: np.ndarray
     bias: np.ndarray
@@ -175,16 +169,45 @@ class Convolution(Layer):
         self.filters = filters
         self.filter_size = filter_size
         self.stride = stride
-        self.padding = int((filter_size - 1) / 2) # int since filter size is uneven
+        self.padding = int((filter_size - 1) / 2) # int since filter size is odd
 
-        # He initialization for weights: (filters, channels, filter_height, filter_width)
-        num_input_variables = channels * (filter_size ** 2)
-        self.weights = np.random.randn(filters, channels, filter_size, filter_size) * np.sqrt(2 / num_input_variables)
+        # He initialisation for weights: (filters, channels, filter_height, filter_width)
+        num_weights = channels * (filter_size ** 2)
+        self.weights = np.random.randn(filters, channels, filter_size, filter_size) * np.sqrt(2 / num_weights)
         self.bias = np.zeros((filters, 1, 1))
 
 
     def forward(self, input_data: np.ndarray) -> np.ndarray:
-        return #todo
+        self.input = input_data
+        batch_size = input_data.shape[0]
+
+        # Applying padding to the spatial dimensions (height and width)
+        self.input_padded = np.pad(
+            input_data,
+            ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)),
+            mode='constant'
+        )
+
+        # Initialising output tensor to reduce compute (avoiding .append())
+        _, out_height, out_width = self.output_shape
+        self.output = np.zeros((batch_size, self.filters, out_height, out_width))
+
+        # Convolution: iterating over each pixel
+        for i in range(out_height):
+            for j in range(out_width):
+                height_start = i * self.stride
+                height_end = height_start + self.filter_size
+                width_start = j * self.stride
+                width_end = width_start + self.filter_size
+
+                # Shape: (batch_size, channels, filter_size, filter_size)
+                patch = self.input_padded[:, :, height_start:height_end, width_start:width_end]
+
+                # Vectorised dot product over the batch using tensordot
+                # Result shape: (batch_size, num_filters)
+                self.output[:, :, i, j] = np.tensordot(patch, self.weights, axes=([1, 2, 3], [1, 2, 3])) + self.bias.flatten()
+
+        return self.output
 
     def backwards(self, #to do
 
