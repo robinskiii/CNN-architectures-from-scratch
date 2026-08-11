@@ -201,7 +201,7 @@ class Convolution(Layer):
                 width_end = width_start + self.filter_size
 
                 # Shape: (batch_size, channels, filter_size, filter_size)
-                patch = self.input_padded[:, :, height_start:height_end, width_start:width_end]
+                patch = self.input_padded[:, :, height_start : height_end, width_start : width_end]
 
                 # Vectorised dot product over the batch using tensordot
                 # Result shape: (batch_size, num_filters)
@@ -209,7 +209,44 @@ class Convolution(Layer):
 
         return self.output
 
-    def backwards(self, #to do
+
+    def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
+        _, out_height, out_width = self.output_shape
+
+        # Initialising gradients
+        weights_error = np.zeros_like(self.weights) # same shape as weights tensor
+        input_error_padded = np.zeros_like(self.input_padded)
+
+        # Computing gradients
+        for i in range(out_height):
+            for j in range(out_width):
+                height_start = i * self.stride
+                height_end = height_start + self.filter_size
+                width_start = j * self.stride
+                width_end = width_start + self.filter_size
+
+                # The patch used during the forward pass
+                patch = self.input_padded[:, :, height_start:height_end, width_start:width_end]
+
+                # Error for this specific spatial location: (batch_size, num_filters)
+                err = output_error[:, :, i, j]
+
+                # Accumulate weight gradients
+                weights_error += np.tensordot(err, patch, axes=([0], [0]))
+
+                input_error_padded[:, :, height_start : height_end, width_start : width_end] += np.tensordot(err, self.weights, axes=([1], [0]))
+
+        # Bias error: sum of output errors across the batch and height/width dimensions
+        bias_error = np.sum(output_error, axis=(0, 2, 3)).reshape(self.filters, 1, 1)
+
+        # Update parameters
+        self.weights -= learning_rate * weights_error
+        self.bias -= learning_rate * bias_error
+
+        # Removing padding from the input error to match input shape
+        input_error = input_error_padded[:, :, self.padding:-self.padding, self.padding:-self.padding]
+
+        return input_error
 
 
 
