@@ -264,7 +264,6 @@ class MaxPooling(Layer):
     pool_size: int
 
     def __init__(self, input_shape: tuple[int, int, int], pool_size: int = 2) -> None:
-
         self.input_shape = input_shape
         self.pool_size = pool_size
 
@@ -286,16 +285,42 @@ class MaxPooling(Layer):
 
         for i in range(out_height):
             for j in range(out_width):
-                h_start = i * self.pool_size
-                h_end = h_start + self.pool_size
-                w_start = j * self.pool_size
-                w_end = w_start + self.pool_size
+                height_start = i * self.pool_size
+                height_end = height_start + self.pool_size
+                width_start = j * self.pool_size
+                width_end = width_start + self.pool_size
 
                 # Extract the patch and find the maximum value across spatial dimensions
-                patch = self.input[:, :, h_start:h_end, w_start:w_end]
+                patch = self.input[:, :, height_start : height_end, width_start : width_end]
                 self.output[:, :, i, j] = np.max(patch, axis=(2, 3))
 
         return self.output
+
+    def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
+        _, out_height, out_width = self.output_shape
+
+        input_error = np.zeros_like(self.input)
+
+        for i in range(out_height):
+            for j in range(out_width):
+                height_start = i * self.pool_size
+                height_end = height_start + self.pool_size
+                width_start = j * self.pool_size
+                width_end = width_start + self.pool_size
+
+                patch = self.input[:, :, height_start : height_end, width_start : width_end]
+
+                # Create a mask of the maximum values in the patch
+                # We reshape to allow broadcasting against the original patch
+                max_val = np.max(patch, axis=(2, 3), keepdims=True)
+                mask = (patch == max_val)
+
+                # Route the error back only to the pixels that were the maximum
+                # We use keepdims=True on output_error slice to broadcast properly
+                err = output_error[:, :, i:i+1, j:j+1]
+                input_error[:, :, height_start : height_end, width_start : width_end] += mask * err
+
+        return input_error
 
 
 
