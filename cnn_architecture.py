@@ -40,8 +40,8 @@ class Dense(Layer):
     Fully Connected Layer (basic NN architecture)
 
     Attributes:
-        weights: np.ndarray
-        bias: np.ndarray
+        weights: np.ndarray (2D data)
+        bias: np.ndarray    (1D data)
 
     """
     weights: np.ndarray
@@ -245,6 +245,57 @@ class Convolution(Layer):
         input_error = input_error_padded[:, :, self.padding:-self.padding, self.padding:-self.padding]
 
         return input_error
+
+
+
+class MaxPooling(Layer):
+    """
+    2D Max Pooling Layer
+
+    Reduces spatial dimensions (height and width) by taking the maximum
+    value over a sliding window.
+
+    Attributes:
+        pool_size: int   (default = 2 (for 2x2 windows))
+    """
+    input_shape: tuple[int, int, int]
+    output_shape: tuple[int, int, int]
+
+    pool_size: int
+
+    def __init__(self, input_shape: tuple[int, int, int], pool_size: int = 2) -> None:
+
+        self.input_shape = input_shape
+        self.pool_size = pool_size
+
+        channels, in_height, in_width = input_shape
+
+        # Output dimensions
+        out_height = in_height // pool_size
+        out_width = in_width  // pool_size
+        self.output_shape = channels, out_height, out_width
+
+        super().__init__(self.input_shape, self.output_shape)
+
+    def forward(self, input_data: np.ndarray) -> np.ndarray:
+        self.input = input_data
+        batch_size, channels, _, _ = input_data.shape
+        _, out_height, out_width = self.output_shape
+
+        self.output = np.zeros((batch_size, channels, out_height, out_width))
+
+        for i in range(out_height):
+            for j in range(out_width):
+                h_start = i * self.pool_size
+                h_end = h_start + self.pool_size
+                w_start = j * self.pool_size
+                w_end = w_start + self.pool_size
+
+                # Extract the patch and find the maximum value across spatial dimensions
+                patch = self.input[:, :, h_start:h_end, w_start:w_end]
+                self.output[:, :, i, j] = np.max(patch, axis=(2, 3))
+
+        return self.output
 
 
 
