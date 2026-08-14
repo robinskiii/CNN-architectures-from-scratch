@@ -311,13 +311,14 @@ class MaxPooling(Layer):
                 patch = self.input[:, :, height_start : height_end, width_start : width_end]
 
                 # Create a mask of the maximum values in the patch
-                # We reshape to allow broadcasting against the original patch
+                # We keepdims to allow comparing against the original patch
                 max_val = np.max(patch, axis=(2, 3), keepdims=True)
-                mask = (patch == max_val)
+                mask = (patch == max_val) # Only True in the location of max value
 
                 # Route the error back only to the pixels that were the maximum
                 # We use keepdims=True on output_error slice to broadcast properly
                 err = output_error[:, :, i:i+1, j:j+1]
+                # We patch in the error
                 input_error[:, :, height_start : height_end, width_start : width_end] += mask * err
 
         return input_error
@@ -429,28 +430,44 @@ def bce_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
 if __name__ == "__main__":
     np.random.seed(0)
 
+    # Data dimensions
     batch_size = 32
-    input_dim = 4
-    output_dim = 1
+    channels = 3         # RGB
+    image_height = 28
+    image_width = 28
 
-    # Random test data
-    X_train = np.random.randn(batch_size, input_dim)
+    input_shape = (channels, image_height, image_width)
+
+    # Random training data
+    X_train = np.random.randn(batch_size, channels, image_height, image_width)
+    # Random binary labels
     y_train = np.random.randint(2, size=(batch_size, 1))
 
-    # Initialize network
+
+    # ---- MODEL ----
+
     model = Model()
-    model.add(Dense(input_dim, 10))
-    model.add(ReLU(10))
-    model.add(Dense(10, 6))
-    model.add(ReLU(6))
-    model.add(Dense(6, 5))
-    model.add(ReLU(5))
-    model.add(Dense(5, 1))
-    model.add(Sigmoid(output_dim))
+
+    model.add(Convolution(input_shape, filters=8, filter_size=3, stride=1))    # (3,28,28) -> (8,28,28)
+    model.add(ReLU(dim=(8, 28, 28)))
+    model.add(MaxPooling((8, 28, 28), pool_size=2))                            # (8,28,28) -> (8,14,14)
+
+    model.add(Convolution((8, 14, 14), filters=16, filter_size=3, stride=1))   # (8,14,14) -> (16,14,14)
+    model.add(ReLU(dim=(16, 14, 14)))
+    model.add(MaxPooling((16, 14, 14), pool_size=2))                           # (16,14,14) -> (16,7,7)
+
+    model.add(Flatten((16, 7, 7)))                                             # (16,7,7) -> (784)
+
+    model.add(Dense(784, 64))                                                  # (784) -> (64)
+    model.add(ReLU(dim=64))
+    model.add(Dense(64, 1))                                                    # (64) -> (1)
+
+    model.add(Sigmoid(dim=1))
 
     model.set_loss_function(bce, bce_derivative)
 
-    print("\n",65*"=")
-    model.train(X_train, y_train, epochs=10000, learning_rate=0.01)
-    print(65*"=","\n")
-    # print(model.predict(X_train))
+    print("\n", 65*"=")
+    print("Training Model...")
+
+    model.train(X_train, y_train, epochs=100, learning_rate=0.01)
+    print(65*"=", "\n")
