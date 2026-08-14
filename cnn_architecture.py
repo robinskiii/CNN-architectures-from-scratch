@@ -469,5 +469,5 @@ if __name__ == "__main__":
     print("\n", 65*"=")
     print("Training Model...")
 
-    model.train(X_train, y_train, epochs=100, learning_rate=0.01)
+    model.train(X_train, y_train, epochs=100, learning_rate=0.0001)
     print(65*"=", "\n")
