@@ -176,7 +176,6 @@ class Convolution(Layer):
         self.weights = np.random.randn(filters, channels, filter_size, filter_size) * np.sqrt(2 / num_weights)
         self.bias = np.zeros((filters, 1, 1))
 
-
     def forward(self, input_data: np.ndarray) -> np.ndarray:
         self.input = input_data
         batch_size = input_data.shape[0]
@@ -208,7 +207,6 @@ class Convolution(Layer):
                 self.output[:, :, i, j] = np.tensordot(patch, self.weights, axes=([1, 2, 3], [1, 2, 3])) + self.bias.flatten()
 
         return self.output
-
 
     def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
         _, out_height, out_width = self.output_shape
@@ -251,7 +249,26 @@ class Convolution(Layer):
 
 
 class Flatten(Layer):
-    pass                                                                                    # TO DO
+    """
+    Flattens 4D image data into a 2D matrix (batch size, features)
+    To link convolution layer to dense layer
+    """
+    input_batch_shape: tuple
+
+    def __init__(self, input_shape: tuple) -> None:
+        output_shape = int(np.prod(input_shape))
+        super().__init__(input_shape, output_shape)
+
+    def forward(self, input_data: np.ndarray) -> np.ndarray:
+        # Store original batch shape to reshape during backprop
+        self.input_batch_shape = input_data.shape
+
+        # Reshape into (batch_size, total_features)
+        return input_data.reshape(input_data.shape[0], -1)
+
+    def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
+        # Reshape the 2D error matrix back into the 4D volume expected by convolution layers
+        return output_error.reshape(self.input_batch_shape)
 
 
 
