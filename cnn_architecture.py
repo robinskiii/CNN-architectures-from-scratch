@@ -137,7 +137,9 @@ class Convolution(Layer):
     input_shape: tuple[int, int, int]
     output_shape: tuple[int, int, int]
 
+    input: np.ndarray
     input_padded: np.ndarray
+    output: np.ndarray
 
     weights: np.ndarray
     bias: np.ndarray
@@ -263,23 +265,39 @@ class MaxPooling(Layer):
 
     pool_size: int
 
+    input: np.ndarray
+    input_padded: np.ndarray
+    output: np.ndarray
+
+
     def __init__(self, input_shape: tuple[int, int, int], pool_size: int = 2) -> None:
         self.input_shape = input_shape
         self.pool_size = pool_size
 
         channels, in_height, in_width = input_shape
 
-        # Output dimensions
-        out_height = in_height // pool_size
-        out_width = in_width  // pool_size
+        # Output dimensions (rounded up to include incomplete patches)
+        out_height = ((in_height-1) // pool_size) + 1
+        out_width = ((in_width-1)  // pool_size) +1
         self.output_shape = channels, out_height, out_width
 
         super().__init__(self.input_shape, self.output_shape)
 
     def forward(self, input_data: np.ndarray) -> np.ndarray:
         self.input = input_data
-        batch_size, channels, _, _ = input_data.shape
+        batch_size, channels, in_height, in_width = input_data.shape
         _, out_height, out_width = self.output_shape
+
+        # if padding is needed (when pool size doesn't divide input dimension)
+        pad_height = (out_height * self.pool_size) - in_height
+        pad_width = (out_width * self.pool_size) - in_width
+
+        self.input_padded = np.pad(
+            input_data,
+            pad_width=((0, 0), (0, 0), (0, pad_height), (0, pad_width)),
+            mode='constant',
+            constant_values=-np.inf # to be sure not to interfere in the max calculation
+        )
 
         self.output = np.zeros((batch_size, channels, out_height, out_width))
 
@@ -291,15 +309,16 @@ class MaxPooling(Layer):
                 width_end = width_start + self.pool_size
 
                 # Extract the patch and find the maximum value across spatial dimensions
-                patch = self.input[:, :, height_start : height_end, width_start : width_end]
+                patch = self.input_padded[:, :, height_start : height_end, width_start : width_end]
                 self.output[:, :, i, j] = np.max(patch, axis=(2, 3))
 
         return self.output
 
     def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
         _, out_height, out_width = self.output_shape
+        _, in_height, in_width = self.input_shape
 
-        input_error = np.zeros_like(self.input)
+        input_padded_error = np.zeros_like(self.input_padded)
 
         for i in range(out_height):
             for j in range(out_width):
@@ -308,7 +327,7 @@ class MaxPooling(Layer):
                 width_start = j * self.pool_size
                 width_end = width_start + self.pool_size
 
-                patch = self.input[:, :, height_start : height_end, width_start : width_end]
+                patch = self.input_padded[:, :, height_start : height_end, width_start : width_end]
 
                 # Create a mask of the maximum values in the patch
                 # We keepdims to allow comparing against the original patch
@@ -319,7 +338,9 @@ class MaxPooling(Layer):
                 # We use keepdims=True on output_error slice to broadcast properly
                 err = output_error[:, :, i:i+1, j:j+1]
                 # We patch in the error
-                input_error[:, :, height_start : height_end, width_start : width_end] += mask * err
+                input_padded_error[:, :, height_start : height_end, width_start : width_end] += mask * err
+
+        input_error = input_padded_error[:, :, :in_height, :in_width]
 
         return input_error
 
@@ -365,7 +386,7 @@ class Model:
 
         # check input dimensions match output dimensions of previous layer
         if self.layers and (self.layers[-1].output_shape != layer.input_shape):
-                raise ValueError
+                raise ValueError("Dimensions do not match between layers.")
 
         self.layers.append(layer)
 
@@ -434,8 +455,8 @@ if __name__ == "__main__":
     # Data dimensions
     batch_size = 32
     channels = 3         # RGB
-    image_height = 28
-    image_width = 28
+    image_height = 218
+    image_width = 178
 
     input_shape = (channels, image_height, image_width)
 
@@ -449,21 +470,29 @@ if __name__ == "__main__":
 
     model = Model()
 
-    model.add(Convolution(input_shape, filters=8))    # (3,28,28) -> (8,28,28)
-    model.add(ReLU(dim=(8, 28, 28)))
-    model.add(MaxPooling((8, 28, 28)))                # (8,28,28) -> (8,14,14)
+    model.add(Convolution(input_shape, filters=8))          # (3,218,178) -> (8,218,178)
+    model.add(ReLU((8, image_height, image_width)))
+    model.add(MaxPooling((8, image_height, image_width)))   # (8,218,178) -> (8,109,89)
 
-    model.add(Convolution((8, 14, 14), filters=16))   # (8,14,14) -> (16,14,14)
-    model.add(ReLU(dim=(16, 14, 14)))
-    model.add(MaxPooling((16, 14, 14)))               # (16,14,14) -> (16,7,7)
+    model.add(Convolution((8, 109, 89), filters=16))        # (8,109,89) -> (16,109,89)
+    model.add(ReLU((16, 109, 89)))
+    model.add(MaxPooling((16, 109, 89)))                    # (16,109,89) -> (16,55,45)
 
-    model.add(Flatten((16, 7, 7)))                    # (16,7,7) -> (784)
+    model.add(Convolution((16, 55, 45), filters=32))        # (16,55,45) -> (32,55,45)
+    model.add(ReLU((32, 55, 45)))
+    model.add(MaxPooling((32, 55, 45)))                     # (32,55,45) -> (32,28,23)
 
-    model.add(Dense(784, 64))                         # (784) -> (64)
-    model.add(ReLU(dim=64))
-    model.add(Dense(64, 1))                           # (64) -> (1)
+    model.add(Convolution((32, 28, 23), filters=32))        # (32,28,23) -> (32,28,23)
+    model.add(ReLU((32, 28, 23)))
+    model.add(MaxPooling((32, 28, 23)))                     # (32,28,23) -> (32,14,12)
 
-    model.add(Sigmoid(dim=1))
+    model.add(Flatten((32, 14, 12)))                        # (32,14,12) -> (5376)
+
+    model.add(Dense(5376, 128))                             # (5376) -> (128)
+    model.add(ReLU(128))
+    model.add(Dense(128, 1))                                # (128) -> (1)
+
+    model.add(Sigmoid(1))
 
     model.set_loss_function(bce, bce_derivative)
 
@@ -471,7 +500,7 @@ if __name__ == "__main__":
     print(67*"=")
     print("Training Model...")
 
-    model.train(X_train, y_train, epochs=100, learning_rate=0.0005)
+    model.train(X_train, y_train, epochs=100, learning_rate=0.0001)
     print(67*"=", "\n")
 
     print("Predictions vs true labels:")
