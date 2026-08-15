@@ -370,7 +370,6 @@ class Flatten(Layer):
 
 
 
-
 class Model:
     """
     Neural Network composed of a sequence of Layers
@@ -401,25 +400,44 @@ class Model:
             output = layer.forward(output)
         return output
 
-    def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float) -> None:
+    def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float, batch_size: int = 32) -> None:
+        """
+        Updating the model parameters using mini-batch gradient descent
+        """
+        num_samples = x_train.shape[0]
 
         for i in range(epochs):
 
-            # forward prop
-            output = x_train
-            for layer in self.layers:
-                output = layer.forward(output)
+            # shuffle data before each epoch
+            indices = np.random.permutation(num_samples)
+            x_shuffled = x_train[indices]
+            y_shuffled = y_train[indices]
 
-            # track the loss
-            cost = self.loss_function(y_train, output)
+            epoch_cost = 0
+            num_batches = 0
 
-            # back prop
-            error = self.loss_derivative(y_train, output)
-            for layer in reversed(self.layers):
-                error = layer.backward(error, learning_rate)
+            for j in range(0, num_samples, batch_size): # loop over the dataset in chunks of batch_size
+                x_batch = x_shuffled[j : j+batch_size]
+                y_batch = y_shuffled[j : j+batch_size]
 
-            if (i+1) % 10 == 0:
-                print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {cost} ") # i aknowledge this is somewhat overkill
+                # forward prop
+                output = x_batch
+                for layer in self.layers:
+                    output = layer.forward(output)
+
+                # track the loss
+                batch_cost = self.loss_function(y_batch, output)
+                epoch_cost += batch_cost
+                num_batches += 1
+
+                # back prop
+                error = self.loss_derivative(y_batch, output)
+                for layer in reversed(self.layers):
+                    error = layer.backward(error, learning_rate)
+
+            epoch_cost /= num_batches
+
+            print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {epoch_cost} ") # i aknowledge this is somewhat overkill
 
 
 
@@ -453,7 +471,7 @@ if __name__ == "__main__":
     np.random.seed(0)
 
     # Data dimensions
-    batch_size = 32
+    total_samples = 128
     channels = 3         # RGB
     image_height = 218
     image_width = 178
@@ -461,9 +479,9 @@ if __name__ == "__main__":
     input_shape = (channels, image_height, image_width)
 
     # Random training data
-    X_train = np.random.randn(batch_size, channels, image_height, image_width)
+    X_train = np.random.randn(total_samples, channels, image_height, image_width)
     # Random binary labels
-    y_train = np.random.randint(2, size=(batch_size, 1))
+    y_train = np.random.randint(2, size=(total_samples, 1))
 
 
     # ---- MODEL ----
@@ -505,9 +523,9 @@ if __name__ == "__main__":
 
     print("Predictions vs true labels:")
 
-    y_pred = model.predict(X_train)
+    y_pred = model.predict(X_train[:10])
 
-    print(np.column_stack((y_train,y_pred)).T)
+    print(np.column_stack((y_train[:10],y_pred)).T)
 
     print("\n")
     print(67*"=", "\n")
