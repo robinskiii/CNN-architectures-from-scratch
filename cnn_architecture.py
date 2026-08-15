@@ -131,7 +131,7 @@ class Convolution(Layer):
         filters: int
         filter_size: int      (default = 3)
         stride: int           (default = 1)
-        padding: int          (default = 1)
+        padding: int          (calculated such that output has same dimensions as input)
 
     """
     input_shape: tuple[int, int, int]
@@ -397,7 +397,8 @@ class Model:
             for layer in reversed(self.layers):
                 error = layer.backward(error, learning_rate)
 
-            print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {cost} ") # i aknowledge this is somewhat overkill
+            if (i+1) % 10 == 0:
+                print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {cost} ") # i aknowledge this is somewhat overkill
 
 
 
@@ -448,26 +449,36 @@ if __name__ == "__main__":
 
     model = Model()
 
-    model.add(Convolution(input_shape, filters=8, filter_size=3, stride=1))    # (3,28,28) -> (8,28,28)
+    model.add(Convolution(input_shape, filters=8))    # (3,28,28) -> (8,28,28)
     model.add(ReLU(dim=(8, 28, 28)))
-    model.add(MaxPooling((8, 28, 28), pool_size=2))                            # (8,28,28) -> (8,14,14)
+    model.add(MaxPooling((8, 28, 28)))                # (8,28,28) -> (8,14,14)
 
-    model.add(Convolution((8, 14, 14), filters=16, filter_size=3, stride=1))   # (8,14,14) -> (16,14,14)
+    model.add(Convolution((8, 14, 14), filters=16))   # (8,14,14) -> (16,14,14)
     model.add(ReLU(dim=(16, 14, 14)))
-    model.add(MaxPooling((16, 14, 14), pool_size=2))                           # (16,14,14) -> (16,7,7)
+    model.add(MaxPooling((16, 14, 14)))               # (16,14,14) -> (16,7,7)
 
-    model.add(Flatten((16, 7, 7)))                                             # (16,7,7) -> (784)
+    model.add(Flatten((16, 7, 7)))                    # (16,7,7) -> (784)
 
-    model.add(Dense(784, 64))                                                  # (784) -> (64)
+    model.add(Dense(784, 64))                         # (784) -> (64)
     model.add(ReLU(dim=64))
-    model.add(Dense(64, 1))                                                    # (64) -> (1)
+    model.add(Dense(64, 1))                           # (64) -> (1)
 
     model.add(Sigmoid(dim=1))
 
     model.set_loss_function(bce, bce_derivative)
 
-    print("\n", 65*"=")
+    print("\n")
+    print(67*"=")
     print("Training Model...")
 
-    model.train(X_train, y_train, epochs=100, learning_rate=0.0001)
-    print(65*"=", "\n")
+    model.train(X_train, y_train, epochs=100, learning_rate=0.0005)
+    print(67*"=", "\n")
+
+    print("Predictions vs true labels:")
+
+    y_pred = model.predict(X_train)
+
+    print(np.column_stack((y_train,y_pred)).T)
+
+    print("\n")
+    print(67*"=", "\n")
