@@ -1,3 +1,4 @@
+import time
 from abc import abstractmethod
 from collections.abc import Callable
 
@@ -465,7 +466,7 @@ def bce_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
     return - (y_true / y_pred) + (1 - y_true) / (1 - y_pred)
 
-
+# ADD REGULARIZATION !!!
 
 if __name__ == "__main__":
     np.random.seed(0)
@@ -518,7 +519,15 @@ if __name__ == "__main__":
     print(67*"=")
     print("Training Model...")
 
+    start = time.perf_counter()
+
     model.train(X_train, y_train, epochs=100, learning_rate=0.0001)
+    print(67*"=", "\n")
+
+    end = time.perf_counter()
+
+    print(f"Time spent training model: {end-start} seconds\n")
+
     print(67*"=", "\n")
 
     print("Predictions vs true labels:")
