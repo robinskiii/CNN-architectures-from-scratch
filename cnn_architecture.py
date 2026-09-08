@@ -119,6 +119,9 @@ class Sigmoid(Layer):
 
 
 
+
+
+
 class Convolution(Layer):
     """
     2D Convolutional Layer
@@ -466,6 +469,23 @@ def bce_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
     return - (y_true / y_pred) + (1 - y_true) / (1 - y_pred)
 
+
+
+def cce(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """
+    Categorical cross entropy loss function (for Multi-Class Classification)
+    """
+    epsilon = 1e-15
+    y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
+    # sum over classes, mean average over batch
+    return -np.mean(np.sum(y_true * np.log(y_pred), axis=-1))
+
+def cce_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
+    epsilon = 1e-15
+    y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
+    # return error matrix scaled by batch size
+    return - (y_true / y_pred) / y_true.shape[0] # derivative of log(y_pred) is 1/y_pred
+
 # ADD REGULARIZATION !!!
 
 if __name__ == "__main__":
@@ -532,9 +552,9 @@ if __name__ == "__main__":
 
     print("Predictions vs true labels:")
 
-    y_pred = model.predict(X_train[:10])
+    y_pred = model.predict(X_train[:6])
 
-    print(np.column_stack((y_train[:10],y_pred)).T)
+    print(np.column_stack((y_train[:6],y_pred)).T)
 
     print("\n")
     print(67*"=", "\n")
