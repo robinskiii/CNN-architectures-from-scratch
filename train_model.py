@@ -3,7 +3,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from layers_architecture import (
+from layer_architecture import (
     Convolution,
     Dense,
     Flatten,
