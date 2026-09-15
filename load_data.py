@@ -41,19 +41,18 @@ def download_data() -> str:
 
 
 def process_data(
-    data_path: str,
     attribute_name: str = DEFAULT_ATTRIBUTE,
     max_samples: int | None = None,
     image_size: tuple[int, int] | None = None,
     shuffle: bool = True,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Load CelebA images and binary labels into NumPy arrays
+    Load CelebA images, binary labels, and image IDs into NumPy arrays.
 
     The labels are derived from one attribute column in list_attr_celeba.csv
     Values in the CelebA attribute file are typically -1 and 1, so we map them to 0 and 1 respectively
     """
-    data_root = Path(data_path)
+    data_root = Path(download_data())
     attr_csv_path = data_root / "list_attr_celeba.csv"
     partition_csv_path = data_root / "list_eval_partition.csv"
     images_folder_path = data_root / "img_align_celeba" / "img_align_celeba"
@@ -89,6 +88,7 @@ def process_data(
 
     images: list[np.ndarray] = []
     labels: list[int] = []
+    image_ids: list[str] = []
 
     for _, row in df.iterrows():
         image_filename = row["image_id"]
@@ -100,39 +100,25 @@ def process_data(
             if image_size is not None:
                 img = img.resize(image_size)
 
-            image_array = np.asarray(img, dtype=np.float32) / 255.0
+            image_array = np.asarray(img, dtype=np.float32) / 255.0 # normalising
             image_array = np.transpose(image_array, (2, 0, 1))
 
         images.append(image_array)
         labels.append(1 if int(label_value) == 1 else 0)
+        image_ids.append(image_filename)
 
     if not images:
         raise ValueError("No training samples were loaded from the dataset.")
 
     X_train = np.stack(images, axis=0)
     y_train = np.asarray(labels, dtype=np.float32).reshape(-1, 1)
+    image_ids_array = np.asarray(image_ids, dtype=str)
 
-    return X_train, y_train
-
-
-def load_data(
-    attribute_name: str = DEFAULT_ATTRIBUTE,
-    max_samples: int | None = None,
-    image_size: tuple[int, int] | None = None,
-    shuffle: bool = True,
-) -> tuple[np.ndarray, np.ndarray]:
-
-    path = download_data()
-    return process_data(
-        path,
-        attribute_name=attribute_name,
-        max_samples=max_samples,
-        image_size=image_size,
-        shuffle=shuffle,
-    )
+    return X_train, y_train, image_ids_array
 
 
 if __name__ == "__main__":
-    X_train, y_train = load_data(max_samples=8)
+    X_train, y_train, image_ids = process_data(max_samples=1000)
     print(f"Loaded X_train with shape {X_train.shape}")
     print(f"Loaded y_train with shape {y_train.shape}")
+    print(f"Loaded image_ids with shape {image_ids.shape}")

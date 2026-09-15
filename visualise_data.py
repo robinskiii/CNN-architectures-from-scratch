@@ -58,3 +58,8 @@ if __name__== '__main__':
 
     open_random_image(path)
     print("\n")
+
+
+### TO CHANGE:
+# Choose an attribute (smiling default)
+# Start a visualisation stream where pressing up key displays positive attribute and pressing down key displays negative attribute
