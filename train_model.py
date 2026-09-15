@@ -65,6 +65,14 @@ class Model:
                 x_batch = x_shuffled[j : j+batch_size]
                 y_batch = y_shuffled[j : j+batch_size]
 
+                # Data augmentation for image batches (during training to reduce memory usage (no need to store mirror images))
+                # Expected image layout is (batch, channels, height, width).
+                if x_batch.ndim == 4:
+                    flip_mask = np.random.rand(x_batch.shape[0]) < 0.5
+                    if np.any(flip_mask):
+                        x_batch = x_batch.copy() # shallow copy
+                        x_batch[flip_mask] = x_batch[flip_mask, :, :, ::-1] # horizontal flip
+
                 # forward prop
                 output = x_batch
                 for layer in self.layers:
