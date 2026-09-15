@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from layer_architecture import Dense, ReLU, Sigmoid
+import train_model
+from layer_architecture import Dense, Layer, ReLU, Sigmoid
 from train_model import (
     Model,
     bce,
@@ -86,6 +87,7 @@ def test_model_starts_empty_and_stores_loss_functions():
     assert model.loss_function is mse
     assert model.loss_derivative is mse_derivative
 
+
 def test_model_layer_mismatch():
     """
     Test that the Model catches dimension mismatches when adding layers
@@ -106,6 +108,7 @@ def test_model_add_accepts_matching_layer_dimensions():
     model.add(second_layer)
 
     assert model.layers == [first_layer, second_layer]
+
 
 def test_model_forward_pass():
     """
@@ -182,3 +185,61 @@ def test_model_train_processes_final_incomplete_batch():
     model.train(x_train, y_train, epochs=2, learning_rate=0.001, batch_size=2)
 
     assert batch_sizes == [2, 2, 1, 2, 2, 1]
+
+
+def test_model_train_data_augmentation(monkeypatch):
+    """
+    Tests that the model randomly flips data during the batch training
+    Monkeypatch is used to disable the randomness
+    """
+    class TestLayer(Layer):
+        input_shape = (1, 2, 2)
+        output_shape = (1, 2, 2)
+
+        def __init__(self):
+            self.seen_batches = []
+
+        def forward(self, input_data):
+            self.seen_batches.append(input_data.copy())
+            return input_data
+
+        def backward(self, output_error, learning_rate):
+            return output_error
+
+    layer = TestLayer()
+    model = Model()
+    model.add(layer)
+    model.set_loss_function(mse, mse_derivative)
+
+    x_train = np.array(
+        [
+            [[[1.0, 2.0], [3.0, 4.0]]],
+            [[[5.0, 6.0], [7.0, 8.0]]],
+        ]
+    )
+    y_train = np.zeros((2, 1))
+
+    monkeypatch.setattr(train_model.np.random, "permutation", lambda n: np.arange(n)) # disabling the shuffling
+    monkeypatch.setattr(
+        train_model.np.random,
+        "rand",
+        lambda n: np.array([0.25, 0.75]),
+    ) # forces the first training array to be flipped and the second to not be flipped
+
+    model.train(x_train, y_train, epochs=1, learning_rate=0.001, batch_size=2)
+
+    expected_batch = np.array(
+        [
+            [[[2.0, 1.0], [4.0, 3.0]]],
+            [[[5.0, 6.0], [7.0, 8.0]]],
+        ]
+    )
+
+    assert len(layer.seen_batches) == 1
+    np.testing.assert_array_equal(layer.seen_batches[0], expected_batch)
+    np.testing.assert_array_equal(x_train, np.array(
+        [
+            [[[1.0, 2.0], [3.0, 4.0]]],
+            [[[5.0, 6.0], [7.0, 8.0]]],
+        ]
+    ))

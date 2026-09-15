@@ -11,7 +11,7 @@ from layer_architecture import (
     MaxPooling,
     ReLU,
     Sigmoid,
-    Softmax,
+    Softmax,  # noqa: F401
 )
 
 
