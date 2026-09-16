@@ -64,6 +64,8 @@ def open_visualisation_stream(path: str, attribute_name: str = DEFAULT_ATTRIBUTE
     negative_order = rng.permutation(len(negative_samples))
     positive_index = 0
     negative_index = 0
+    history: list[Sample] = []
+    history_index = 0
 
     def next_sample(label: int) -> Sample:
         nonlocal positive_order, negative_order, positive_index, negative_index
@@ -101,11 +103,46 @@ def open_visualisation_stream(path: str, attribute_name: str = DEFAULT_ATTRIBUTE
 
         print(f"Showing {label_text.lower()} sample: {sample.image_id}")
 
+    def show_sample(sample: Sample) -> None:
+        nonlocal history, history_index
+
+        if history_index < len(history) - 1:
+            history = history[: history_index + 1]
+
+        history.append(sample)
+        history_index = len(history) - 1
+        render(sample)
+
+    def show_current() -> None:
+        render(history[history_index])
+
+    def go_back() -> None:
+        nonlocal history_index
+
+        if history_index > 0:
+            history_index -= 1
+            show_current()
+        else:
+            print("Already at the earliest viewed image.")
+
+    def go_forward() -> None:
+        nonlocal history_index
+
+        if history_index < len(history) - 1:
+            history_index += 1
+            show_current()
+        else:
+            print("Already at the most recent generated image.")
+
     def on_key(event) -> None:
         if event.key == "up":
-            render(next_sample(1))
+            show_sample(next_sample(1))
         elif event.key == "down":
-            render(next_sample(0))
+            show_sample(next_sample(0))
+        elif event.key == "left":
+            go_back()
+        elif event.key == "right":
+            go_forward()
         elif event.key in {"q", "escape"}:
             plt.close(fig)
 
@@ -116,10 +153,12 @@ def open_visualisation_stream(path: str, attribute_name: str = DEFAULT_ATTRIBUTE
     print(f"Interactive stream for attribute: {attribute_name}")
     print("Press Up to show a positive sample.")
     print("Press Down to show a negative sample.")
+    print("Press Left to go back one viewed image.")
+    print("Press Right to go forward to the last generated image.")
     print("Press Q or Escape to quit.")
     print(104 * "=")
 
-    render(next_sample(1))
+    show_sample(next_sample(1))
     plt.tight_layout()
     plt.show()
 
