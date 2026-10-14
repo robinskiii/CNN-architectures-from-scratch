@@ -50,7 +50,7 @@ def process_data(
     Load CelebA images, binary labels, and image IDs into NumPy arrays.
 
     The labels are derived from one attribute column in list_attr_celeba.csv
-    Values in the CelebA attribute file are typically -1 and 1, so we map them to 0 and 1 respectively
+    Values in the CelebA attribute file are -1 and 1, so we map them to 0 and 1 respectively
     """
     data_root = Path(download_data())
     attr_csv_path = data_root / "list_attr_celeba.csv"

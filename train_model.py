@@ -1,5 +1,6 @@
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -13,6 +14,14 @@ from layer_architecture import (
     Sigmoid,
     Softmax,  # noqa: F401
 )
+
+
+@dataclass
+class training_data:
+    train_loss: np.ndarray
+    val_loss: np.ndarray
+    val_accuracy: np.ndarray
+
 
 
 class Model:
@@ -45,11 +54,15 @@ class Model:
             output = layer.forward(output)
         return output
 
-    def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float, batch_size: int = 32) -> None:
+    def evaluate(self):
+        pass
+
+    def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float, batch_size: int = 32) -> training_data :
         """
         Updating the model parameters using mini-batch gradient descent
         """
         num_samples = x_train.shape[0]
+        data = training_data(np.zeros(epochs),np.zeros(epochs),np.zeros(epochs))
 
         for i in range(epochs):
 
@@ -74,9 +87,7 @@ class Model:
                         x_batch[flip_mask] = x_batch[flip_mask, :, :, ::-1] # horizontal flip
 
                 # forward prop
-                output = x_batch
-                for layer in self.layers:
-                    output = layer.forward(output)
+                output = self.predict(x_batch)
 
                 # track the loss
                 batch_cost = self.loss_function(y_batch, output)
@@ -91,6 +102,8 @@ class Model:
             epoch_cost /= num_batches
 
             print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {epoch_cost} ") # i aknowledge this is somewhat overkill
+
+        return data
 
 
 
