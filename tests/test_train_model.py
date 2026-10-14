@@ -139,6 +139,54 @@ def test_model_predict_returns_input_when_no_layers_are_present():
     np.testing.assert_array_equal(output, x)
 
 
+def test_model_evaluate_records_batch_weighted_losses_and_binary_accuracy():
+    model = Model()
+    layer = Dense(1, 1)
+    layer.weights.fill(2.0)
+    layer.bias.fill(0.0)
+    model.add(layer)
+    model.add(Sigmoid(1))
+    model.set_loss_function(bce, bce_derivative)
+
+    x_train = np.array([[-2.0], [0.0], [2.0]])
+    y_train = np.array([[0.0], [1.0], [1.0]])
+    x_val = np.array([[-2.0], [0.0], [2.0]])
+    y_val = np.array([[0.0], [0.0], [1.0]])
+
+    model.evaluate(x_train, y_train, x_val, y_val, batch_size=2)
+
+    assert model.training_data.train_loss == pytest.approx([
+        bce(y_train, model.predict(x_train))
+    ])
+    assert model.training_data.val_loss == pytest.approx([
+        bce(y_val, model.predict(x_val))
+    ])
+    assert model.training_data.val_accuracy == pytest.approx([2 / 3])
+    np.testing.assert_array_equal(layer.weights, [[2.0]])
+    np.testing.assert_array_equal(layer.bias, [[0.0]])
+
+
+def test_model_train_records_one_validation_result_per_epoch():
+    model = Model()
+    layer = Dense(1, 1)
+    layer.weights.fill(0.0)
+    layer.bias.fill(0.0)
+    model.add(layer)
+    model.add(Sigmoid(1))
+    model.set_loss_function(bce, bce_derivative)
+
+    x = np.array([[0.0], [1.0], [2.0]])
+    y = np.array([[0.0], [1.0], [1.0]])
+    history = model.train(x, y, epochs=2, learning_rate=0.0,
+                          batch_size=2, x_val=x, y_val=y)
+
+    assert history is model.training_data
+    assert len(history.train_loss) == 2
+    assert history.train_loss == pytest.approx([np.log(2), np.log(2)])
+    assert history.val_loss == pytest.approx([np.log(2), np.log(2)])
+    assert history.val_accuracy == pytest.approx([2 / 3, 2 / 3])
+
+
 def test_model_train_updates_parameters_and_reduces_loss(capsys):
     np.random.seed(0)
     model = Model()

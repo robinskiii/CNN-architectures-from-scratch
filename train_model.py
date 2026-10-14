@@ -18,9 +18,10 @@ from layer_architecture import (
 
 @dataclass
 class training_data:
-    train_loss: np.ndarray
-    val_loss: np.ndarray
-    val_accuracy: np.ndarray
+    train_loss: list[float]
+    train_accuracy: list[float]
+    val_loss: list[float]
+    val_accuracy: list[float]
 
 
 
@@ -31,9 +32,11 @@ class Model:
     layers: list[Layer]
     loss_function: Callable
     loss_derivative: Callable
+    training_data: training_data
 
     def __init__(self) -> None:
         self.layers = []
+        self.training_data = training_data([],[],[],[])
 
     def add(self, layer : Layer) -> None:
 
@@ -54,15 +57,67 @@ class Model:
             output = layer.forward(output)
         return output
 
-    def evaluate(self):
-        pass
+    def evaluate(self,
+            X_train: np.ndarray,
+            y_train: np.ndarray,
+            X_val: np.ndarray,
+            y_val: np.ndarray,
+            batch_size: int = 2048,
+    ) -> None:
+        """Record training loss, validation loss, and validation accuracy.
 
-    def train(self, x_train: np.ndarray, y_train: np.ndarray, epochs: int, learning_rate: float, batch_size: int = 32) -> training_data :
+        Predictions are made in batches to limit memory use. Labels must be
+        binary (one column) or one-hot encoded (one column per class).
+        """
+        if batch_size < 1:
+            raise ValueError("batch_size must be at least 1")
+
+        def measure_perf(x: np.ndarray, y: np.ndarray) -> tuple[float, float]:
+            if len(x) == 0 or len(x) != len(y):
+                raise ValueError("Evaluation inputs and labels must have matching, nonzero lengths")
+
+            total_loss = 0.0
+            total_correct = 0
+            for start in range(0, len(x), batch_size):
+                x_batch = x[start:start + batch_size]
+                y_batch = y[start:start + batch_size]
+                predictions = self.predict(x_batch)
+                if predictions.shape != y_batch.shape:
+                    raise ValueError("Evaluation predictions and labels must have matching shapes")
+
+                total_loss += float(self.loss_function(y_batch, predictions)) * len(x_batch)
+
+                if predictions.shape[1] == 1: # for binary class.
+                    total_correct += int(np.sum((predictions >= 0.5) == y_batch))
+                else: # for multiclass
+                    total_correct += int(np.sum(np.argmax(predictions, axis=1) == np.argmax(y_batch, axis=1)))
+
+            return total_loss / len(x), total_correct / len(x)
+
+        train_loss, train_accuracy = measure_perf(X_train, y_train)
+        val_loss, val_accuracy = measure_perf(X_val, y_val)
+        self.training_data.train_loss.append(train_loss)
+        self.training_data.train_accuracy.append(train_accuracy)
+        self.training_data.val_loss.append(val_loss)
+        self.training_data.val_accuracy.append(val_accuracy)
+
+    def train(
+            self,
+            x_train: np.ndarray,
+            y_train: np.ndarray,
+            epochs: int,
+            learning_rate: float,
+            batch_size: int = 32,
+            x_val: np.ndarray | None = None,
+            y_val: np.ndarray | None = None) -> training_data :
         """
         Updating the model parameters using mini-batch gradient descent
+        (and calling the evaluate method)
         """
         num_samples = x_train.shape[0]
-        data = training_data(np.zeros(epochs),np.zeros(epochs),np.zeros(epochs))
+
+        if (x_val is None) != (y_val is None):
+            raise ValueError("x_val and y_val must be provided together")
 
         for i in range(epochs):
 
@@ -101,9 +156,14 @@ class Model:
 
             epoch_cost /= num_batches
 
+            if x_val is not None and y_val is not None:
+                self.evaluate(x_train, y_train, x_val, y_val, batch_size=batch_size)
+            else:
+                self.training_data.train_loss.append(float(epoch_cost))
+
             print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {epoch_cost} ") # i aknowledge this is somewhat overkill
 
-        return data
+        return self.training_data
 
 
 
@@ -154,18 +214,21 @@ if __name__ == "__main__":
     np.random.seed(0)
 
     # Data dimensions
-    total_samples = 128
+    total_train_samples = 128
+    total_val_samples = 64
     channels = 3         # RGB
     image_height = 218
     image_width = 178
 
     input_shape = (channels, image_height, image_width)
 
-    # Random training data
-    X_train = np.random.randn(total_samples, channels, image_height, image_width)
-    # Random binary labels
-    y_train = np.random.randint(2, size=(total_samples, 1))
+    # Random training data (model should overfit to this data)
+    X_train = np.random.randn(total_train_samples, channels, image_height, image_width)
+    y_train = np.random.randint(2, size=(total_train_samples, 1)) # binary data
 
+    # Random validation data (model shouldn't be able to fit this since all data is random)
+    X_val = np.random.randn(total_val_samples, channels, image_height, image_width)
+    y_val = np.random.randint(2, size=(total_val_samples, 1)) # binary data
 
     # ---- MODEL ----
 
@@ -203,7 +266,14 @@ if __name__ == "__main__":
 
     start = time.perf_counter()
 
-    model.train(X_train, y_train, epochs=100, learning_rate=0.0001)
+    model.train(
+        X_train,
+        y_train,
+        epochs=100,
+        learning_rate=0.0001,
+        x_val=X_val,
+        y_val=y_val
+        )
     print(67*"=", "\n")
 
     end = time.perf_counter()
