@@ -12,7 +12,7 @@ from layer_architecture import (
     MaxPooling,
     ReLU,
     Sigmoid,
-    Softmax,  # noqa: F401
+    Softmax,
 )
 
 
