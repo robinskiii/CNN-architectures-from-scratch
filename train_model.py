@@ -244,7 +244,7 @@ def bce(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 def bce_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     epsilon = 1e-15
     y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
-    return - (y_true / y_pred) + (1 - y_true) / (1 - y_pred)
+    return - (y_true / y_pred) + (1 - y_true) / (1 - y_pred) / y_true.size
 
 
 
