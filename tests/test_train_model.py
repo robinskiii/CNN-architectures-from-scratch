@@ -166,6 +166,38 @@ def test_model_evaluate_records_batch_weighted_losses_and_binary_accuracy():
     np.testing.assert_array_equal(layer.bias, [[0.0]])
 
 
+def test_model_calculates_binary_confusion_matrix_across_batches():
+    model = Model()
+    layer = Dense(1, 1)
+    layer.weights.fill(2.0)
+    layer.bias.fill(0.0)
+    model.add(layer)
+    model.add(Sigmoid(1))
+
+    x = np.array([[-2.0], [0.0], [2.0], [1.0], [-1.0]])
+    y = np.array([[0.0], [0.0], [1.0], [0.0], [1.0]])
+
+    matrix = model.calculate_confusion_matrix(x, y, batch_size=2)
+
+    np.testing.assert_array_equal(matrix, [[1, 2], [1, 1]])
+    assert matrix.dtype == np.int64
+
+
+def test_model_calculates_multiclass_confusion_matrix():
+    model = Model()
+    predictions = np.array([
+        [0.8, 0.1, 0.1],
+        [0.1, 0.7, 0.2],
+        [0.1, 0.2, 0.7],
+        [0.2, 0.6, 0.2],
+    ])
+    labels = np.eye(3)[[0, 1, 2, 2]]
+
+    matrix = model.calculate_confusion_matrix(predictions, labels, batch_size=2)
+
+    np.testing.assert_array_equal(matrix, [[1, 0, 0], [0, 1, 0], [0, 1, 1]])
+
+
 def test_model_train_records_one_validation_result_per_epoch():
     model = Model()
     layer = Dense(1, 1)
@@ -185,6 +217,7 @@ def test_model_train_records_one_validation_result_per_epoch():
     assert history.train_loss == pytest.approx([np.log(2), np.log(2)])
     assert history.val_loss == pytest.approx([np.log(2), np.log(2)])
     assert history.val_accuracy == pytest.approx([2 / 3, 2 / 3])
+    np.testing.assert_array_equal(history.confusion_matrix, [[0, 1], [0, 2]])
 
 
 def test_model_train_updates_parameters_and_reduces_loss(capsys):

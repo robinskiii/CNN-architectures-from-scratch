@@ -22,6 +22,7 @@ class training_data:
     train_accuracy: list[float]
     val_loss: list[float]
     val_accuracy: list[float]
+    confusion_matrix: np.ndarray
 
 
 
@@ -34,9 +35,11 @@ class Model:
     loss_derivative: Callable
     training_data: training_data
 
+
     def __init__(self) -> None:
         self.layers = []
-        self.training_data = training_data([],[],[],[])
+        self.training_data = training_data([], [], [], [], np.zeros((2, 2), dtype=np.int64))
+
 
     def add(self, layer : Layer) -> None:
 
@@ -46,9 +49,11 @@ class Model:
 
         self.layers.append(layer)
 
+
     def set_loss_function(self, loss_function: Callable, loss_derivative: Callable) -> None:
         self.loss_function = loss_function
         self.loss_derivative = loss_derivative
+
 
     def predict(self, input_data: np.ndarray) -> np.ndarray:
 
@@ -57,12 +62,13 @@ class Model:
             output = layer.forward(output)
         return output
 
+
     def evaluate(self,
             X_train: np.ndarray,
             y_train: np.ndarray,
             X_val: np.ndarray,
             y_val: np.ndarray,
-            batch_size: int = 2048,
+            batch_size: int = 1024,
     ) -> None:
         """Record training loss, validation loss, and validation accuracy.
 
@@ -100,6 +106,45 @@ class Model:
         self.training_data.train_accuracy.append(train_accuracy)
         self.training_data.val_loss.append(val_loss)
         self.training_data.val_accuracy.append(val_accuracy)
+
+
+    def calculate_confusion_matrix(
+            self,
+            x: np.ndarray,
+            y: np.ndarray,
+            batch_size: int = 1024
+            ) -> np.ndarray:
+        """
+        Functions for binary and multiclass.
+        Count predictions by true class (rows) and predicted class (columns).
+        """
+        if batch_size < 1:
+            raise ValueError("batch_size must be at least 1")
+        if len(x) == 0 or len(x) != len(y) or y.ndim != 2:
+            raise ValueError("Inputs and labels must have matching, nonzero lengths and 2D labels")
+
+        num_classes = 2 if y.shape[1] == 1 else y.shape[1]
+        matrix = np.zeros((num_classes, num_classes), dtype=np.int64)
+
+        for start in range(0, len(x), batch_size):
+            y_batch = y[start:start + batch_size]
+            predictions = self.predict(x[start:start + batch_size])
+            if predictions.shape != y_batch.shape:
+                raise ValueError("Predictions and labels must have matching shapes")
+
+            if predictions.shape[1] == 1:
+                true_labels = y_batch[:, 0]
+                if not np.all((true_labels == 0) | (true_labels == 1)):
+                    raise ValueError("Binary labels must be 0 or 1")
+                predicted_labels = (predictions[:, 0] >= 0.5).astype(np.int64)
+                true_labels = true_labels.astype(np.int64)
+            else:
+                true_labels = np.argmax(y_batch, axis=1)
+                predicted_labels = np.argmax(predictions, axis=1)
+
+            np.add.at(matrix, (true_labels, predicted_labels), 1)
+
+        return matrix
 
     def train(
             self,
@@ -162,6 +207,16 @@ class Model:
                 self.training_data.train_loss.append(float(epoch_cost))
 
             print("Epoch: ",(6-len(str(i+1)))*" " ,f"{i+1} out of {epochs}",10*" ",f"cost: {epoch_cost} ") # i aknowledge this is somewhat overkill
+
+        # training data only for models with a classification output layer.
+        if x_val is not None and y_val is not None:
+            self.training_data.confusion_matrix = self.calculate_confusion_matrix(
+                x_val, y_val, batch_size=batch_size
+            )
+        elif self.layers and isinstance(self.layers[-1], (Sigmoid, Softmax)):
+            self.training_data.confusion_matrix = self.calculate_confusion_matrix(
+                x_train, y_train, batch_size=batch_size
+            )
 
         return self.training_data
 
@@ -266,13 +321,13 @@ if __name__ == "__main__":
 
     start = time.perf_counter()
 
-    model.train(
+    data = model.train(
         X_train,
         y_train,
-        epochs=100,
-        learning_rate=0.0001,
-        x_val=X_val,
-        y_val=y_val
+        epochs=50,
+        learning_rate=0.0001#,
+        #x_val=X_val,
+        #y_val=y_val
         )
     print(67*"=", "\n")
 
@@ -288,5 +343,8 @@ if __name__ == "__main__":
 
     print(np.column_stack((y_train[:6],y_pred)).T)
 
-    print("\n")
+    print(67*"=", "\n")
+
+    print(data.confusion_matrix)
+
     print(67*"=", "\n")
