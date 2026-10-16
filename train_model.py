@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from load_data import process_data
 from layer_architecture import (
     Convolution,
     Dense,
@@ -15,6 +14,7 @@ from layer_architecture import (
     Sigmoid,
     Softmax,
 )
+from load_data import process_data
 
 
 @dataclass
