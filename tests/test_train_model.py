@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 
@@ -137,6 +139,57 @@ def test_model_predict_returns_input_when_no_layers_are_present():
     output = model.predict(x)
 
     np.testing.assert_array_equal(output, x)
+
+
+def test_model_save_writes_architecture_and_parameters_to_npz(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    model = Model()
+    dense = Dense(2, 1)
+    dense.weights = np.array([[1.5], [-2.0]])
+    dense.bias = np.array([[0.25]])
+    model.add(dense)
+    model.add(Sigmoid(1))
+
+    saved_path = model.save("smile_classifier")
+
+    assert saved_path == tmp_path / "models" / "smile_classifier.npz"
+    with np.load(saved_path, allow_pickle=False) as saved_model:
+        architecture = json.loads(saved_model["architecture"].item())
+
+        assert set(saved_model.files) == {
+            "architecture", "layer_0_weights", "layer_0_bias",
+        }
+        np.testing.assert_array_equal(saved_model["layer_0_weights"], dense.weights)
+        np.testing.assert_array_equal(saved_model["layer_0_bias"], dense.bias)
+
+    assert architecture["format_version"] == 1
+    assert architecture["layers"] == [
+        {
+            "index": 0,
+            "type": "Dense",
+            "input_shape": 2,
+            "output_shape": 1,
+            "config": {},
+            "weights_key": "layer_0_weights",
+            "bias_key": "layer_0_bias",
+        },
+        {
+            "index": 1,
+            "type": "Sigmoid",
+            "input_shape": 1,
+            "output_shape": 1,
+            "config": {},
+        },
+    ]
+
+
+def test_model_save_rejects_paths_and_empty_titles():
+    model = Model()
+
+    with pytest.raises(ValueError, match="file name"):
+        model.save("")
+    with pytest.raises(ValueError, match="not a path"):
+        model.save("saved/model")
 
 
 def test_model_evaluate_records_batch_weighted_losses_and_binary_accuracy():

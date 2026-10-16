@@ -1,6 +1,9 @@
+import json
 import time
+import typing
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -62,6 +65,58 @@ class Model:
         for layer in self.layers:
             output = layer.forward(output)
         return output
+
+
+    def save(self, title: str) -> Path:
+        """Save the model architecture and learned parameters as an NPZ archive.
+
+        The archive stores tensors as native NumPy arrays. Its ``architecture``
+        entry is JSON metadata that preserves layer order, shapes, configuration,
+        and the array keys belonging to each layer.
+        """
+        if not isinstance(title, str) or not title.strip():
+            raise ValueError("title must be a non-empty file name")
+
+        requested_name = Path(title)
+        if requested_name.name != title or title in {".", ".."}:
+            raise ValueError("title must be a file name, not a path")
+
+        filename = title if title.endswith(".npz") else f"{title}.npz"
+        models_dir = Path.cwd() / "models"
+        models_dir.mkdir(exist_ok=True)
+        save_path = models_dir / filename
+
+        arrays: dict[str, np.ndarray] = {}
+        layer_metadata = []
+        for index, layer in enumerate(self.layers):
+            config = {
+                name: getattr(layer, name)
+                for name in ("filters", "filter_size", "stride", "pool_size")
+                if hasattr(layer, name)
+            }
+            layer_info = {
+                "index": index,
+                "type": type(layer).__name__,
+                "input_shape": layer.input_shape,
+                "output_shape": layer.output_shape,
+                "config": config,
+            }
+            for parameter_name in ("weights", "bias"):
+                parameter = getattr(layer, parameter_name, None)
+                if parameter is not None:
+                    array_key = f"layer_{index}_{parameter_name}"
+                    arrays[array_key] = parameter
+                    layer_info[f"{parameter_name}_key"] = array_key
+            layer_metadata.append(layer_info)
+
+        architecture = {"format_version": 1, "layers": layer_metadata}
+        np.savez_compressed(
+            save_path,
+            architecture=np.array(json.dumps(architecture)),
+            **typing.cast(dict[str, typing.Any], arrays)
+        )
+
+        return save_path
 
 
     def evaluate(self,
@@ -325,6 +380,8 @@ if __name__ == "__main__":
         batch_size=8,
         augment=False,
     )
+
+    model_save = model.save("test")
     print(67*"=", "\n")
 
     end = time.perf_counter()

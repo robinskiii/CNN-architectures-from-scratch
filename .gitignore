@@ -9,5 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
+# Saved model artifacts
+models/*.npz
+
 # apple
 .DS_Store
