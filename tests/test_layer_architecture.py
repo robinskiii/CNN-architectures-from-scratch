@@ -12,6 +12,52 @@ from layer_architecture import (
 )
 
 
+def _finite_difference(array, objective, epsilon=1e-5):
+    """Numerically differentiate a scalar objective at every array element."""
+    gradient = np.zeros_like(array)
+    for index in np.ndindex(array.shape):
+        original = array[index]
+        try:
+            array[index] = original + epsilon
+            plus = objective()
+            array[index] = original - epsilon
+            minus = objective()
+        finally:
+            array[index] = original
+        gradient[index] = (plus - minus) / (2 * epsilon)
+    return gradient
+
+
+def _check_layer_gradients(layer, x, output_error):
+    # J = sum(layer.forward(x) * output_error), so dJ/d(output) is output_error.
+    def objective():
+        return float(np.sum(layer.forward(x) * output_error))
+
+    original_weights = layer.weights.copy()
+    original_bias = layer.bias.copy()
+    layer.forward(x)
+    input_gradient = layer.backward(output_error, learning_rate=1.0)
+
+    # backward() applies an in-place update, so the change at rate 1 is dJ/dtheta.
+    weight_gradient = original_weights - layer.weights
+    bias_gradient = original_bias - layer.bias
+    layer.weights[...] = original_weights
+    layer.bias[...] = original_bias
+
+    np.testing.assert_allclose(
+        weight_gradient, _finite_difference(layer.weights, objective),
+        rtol=1e-5, atol=1e-7,
+    )
+    np.testing.assert_allclose(
+        bias_gradient, _finite_difference(layer.bias, objective),
+        rtol=1e-5, atol=1e-7,
+    )
+    np.testing.assert_allclose(
+        input_gradient, _finite_difference(x, objective),
+        rtol=1e-5, atol=1e-7,
+    )
+
+
 def test_dense_layer_forward_shape():
     """
     Test that the Dense layer outputs the correct tensor shape
@@ -48,6 +94,17 @@ def test_dense_layer_backward_returns_input_error_and_updates_parameters():
     np.testing.assert_allclose(input_error, np.array([[-1.5, -2.5]]))
     np.testing.assert_allclose(layer.weights, np.array([[0.95, 2.1], [2.9, 4.2]]))
     np.testing.assert_allclose(layer.bias, np.array([[-0.05, 0.1]]))
+
+
+def test_dense_backward_matches_finite_differences():
+    rng = np.random.default_rng(123)
+    layer = Dense(input_dim=3, output_dim=2)
+    layer.weights = rng.normal(size=(3, 2))
+    layer.bias = rng.normal(size=(1, 2))
+    x = rng.normal(size=(2, 3))
+    output_error = rng.normal(size=(2, 2))
+
+    _check_layer_gradients(layer, x, output_error)
 
 
 def test_relu_activation():
@@ -174,6 +231,18 @@ def test_convolution_backward_returns_input_error_and_updates_parameters():
     np.testing.assert_allclose(input_error, expected_input_error)
     np.testing.assert_allclose(layer.weights, 1.0 - 0.1 * expected_gradient)
     np.testing.assert_allclose(layer.bias, np.array([[[-0.9]]]))
+
+
+def test_convolution_backward_matches_finite_differences():
+    rng = np.random.default_rng(456)
+    # Convolution requires odd kernels, so use the smallest supported size: 3x3.
+    layer = Convolution(input_shape=(2, 3, 3), filters=2, filter_size=3)
+    layer.weights = rng.normal(size=(2, 2, 3, 3))
+    layer.bias = rng.normal(size=(2, 1, 1))
+    x = rng.normal(size=(1, 2, 3, 3))
+    output_error = rng.normal(size=(1, 2, 3, 3))
+
+    _check_layer_gradients(layer, x, output_error)
 
 
 def test_convolution_invalid_initialisation():
