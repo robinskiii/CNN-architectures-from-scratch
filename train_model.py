@@ -102,6 +102,7 @@ class Model:
 
         train_loss, train_accuracy = measure_perf(X_train, y_train)
         val_loss, val_accuracy = measure_perf(X_val, y_val)
+
         self.training_data.train_loss.append(train_loss)
         self.training_data.train_accuracy.append(train_accuracy)
         self.training_data.val_loss.append(val_loss)
@@ -244,8 +245,7 @@ def bce(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 def bce_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     epsilon = 1e-15
     y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
-    return - (y_true / y_pred) + (1 - y_true) / (1 - y_pred) / y_true.size
-
+    return (-(y_true / y_pred) + (1 - y_true) / (1 - y_pred)) / y_true.size
 
 
 def cce(y_true: np.ndarray, y_pred: np.ndarray) -> float:

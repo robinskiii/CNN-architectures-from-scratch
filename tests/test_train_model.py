@@ -50,7 +50,7 @@ def test_bce_derivative():
 
     derivative = bce_derivative(y_true, y_pred)
 
-    np.testing.assert_allclose(derivative, np.array([[-1.25], [1.25]]))
+    np.testing.assert_allclose(derivative, np.array([[-0.625], [0.625]]))
 
 
 def test_probability_losses_clip_predictions_at_boundaries():
