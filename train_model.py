@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from load_data import process_data
 from layer_architecture import (
     Convolution,
     Dense,
@@ -155,7 +156,9 @@ class Model:
             learning_rate: float,
             batch_size: int = 32,
             x_val: np.ndarray | None = None,
-            y_val: np.ndarray | None = None) -> training_data :
+            y_val: np.ndarray | None = None,
+            augment: bool = True
+        ) -> training_data :
         """
         Updating the model parameters using mini-batch gradient descent
         (and calling the evaluate method)
@@ -181,7 +184,7 @@ class Model:
 
                 # Data augmentation for image batches (during training to reduce memory usage (no need to store mirror images))
                 # Expected image layout is (batch, channels, height, width).
-                if x_batch.ndim == 4:
+                if augment and x_batch.ndim == 4:
                     flip_mask = np.random.rand(x_batch.shape[0]) < 0.5
                     if np.any(flip_mask):
                         x_batch = x_batch.copy() # shallow copy
@@ -268,22 +271,15 @@ def cce_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
 if __name__ == "__main__":
     np.random.seed(0)
 
-    # Data dimensions
-    total_train_samples = 128
-    total_val_samples = 64
-    channels = 3         # RGB
+    X_train, y_train, image_ids = process_data(max_samples=32, shuffle=True)
+
+    channels = 3
     image_height = 218
     image_width = 178
-
     input_shape = (channels, image_height, image_width)
 
-    # Random training data (model should overfit to this data)
-    X_train = np.random.randn(total_train_samples, channels, image_height, image_width)
-    y_train = np.random.randint(2, size=(total_train_samples, 1)) # binary data
-
-    # Random validation data (model shouldn't be able to fit this since all data is random)
-    X_val = np.random.randn(total_val_samples, channels, image_height, image_width)
-    y_val = np.random.randint(2, size=(total_val_samples, 1)) # binary data
+    print(f"Loaded {len(X_train)} CelebA images ({int(y_train.sum())} smiling, "
+          f"{len(y_train) - int(y_train.sum())} not smiling).")
 
     # ---- MODEL ----
 
@@ -324,11 +320,11 @@ if __name__ == "__main__":
     data = model.train(
         X_train,
         y_train,
-        epochs=50,
-        learning_rate=0.0001#,
-        #x_val=X_val,
-        #y_val=y_val
-        )
+        epochs=30,
+        learning_rate=0.01,
+        batch_size=8,
+        augment=False,
+    )
     print(67*"=", "\n")
 
     end = time.perf_counter()

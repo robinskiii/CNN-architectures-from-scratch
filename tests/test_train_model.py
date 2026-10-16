@@ -324,3 +324,51 @@ def test_model_train_data_augmentation(monkeypatch):
             [[[5.0, 6.0], [7.0, 8.0]]],
         ]
     ))
+
+
+def test_model_train_can_disable_data_augmentation(monkeypatch):
+    class TestLayer(Layer):
+        input_shape = (1, 2, 2)
+        output_shape = (1, 2, 2)
+
+        def __init__(self):
+            self.seen_batches = []
+
+        def forward(self, input_data):
+            self.seen_batches.append(input_data.copy())
+            return input_data
+
+        def backward(self, output_error, learning_rate):
+            return output_error
+
+    layer = TestLayer()
+    model = Model()
+    model.add(layer)
+    model.set_loss_function(mse, mse_derivative)
+
+    x_train = np.array(
+        [
+            [[[1.0, 2.0], [3.0, 4.0]]],
+            [[[5.0, 6.0], [7.0, 8.0]]],
+        ]
+    )
+    y_train = np.zeros((2, 1))
+
+    monkeypatch.setattr(train_model.np.random, "permutation", lambda n: np.arange(n))
+    monkeypatch.setattr(
+        train_model.np.random,
+        "rand",
+        lambda n: pytest.fail("random flipping should not run when augmentation is disabled"),
+    )
+
+    model.train(
+        x_train,
+        y_train,
+        epochs=1,
+        learning_rate=0.001,
+        batch_size=2,
+        augment=False,
+    )
+
+    assert len(layer.seen_batches) == 1
+    np.testing.assert_array_equal(layer.seen_batches[0], x_train)
