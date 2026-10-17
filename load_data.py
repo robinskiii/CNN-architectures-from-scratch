@@ -13,7 +13,7 @@ DATASET_NAME = "jessicali9530/celeba-dataset"
 
 
 def download_data() -> str:
-    print("Attempting to locate dataset via kagglehub...")
+    print("\nAttempting to locate dataset via kagglehub...")
     try:
         path = kagglehub.dataset_download(DATASET_NAME)
     except (ConnectionError, OSError, ValueError) as e:

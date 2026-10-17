@@ -203,6 +203,89 @@ class Model:
 
         return matrix
 
+
+    def find_misclassified_indices(
+            self,
+            x: np.ndarray,
+            y: np.ndarray,
+            batch_size: int = 1024,
+            ) -> np.ndarray:
+        """Return dataset indices where the predicted class is wrong."""
+        if batch_size < 1:
+            raise ValueError("batch_size must be at least 1")
+        if len(x) == 0 or len(x) != len(y) or y.ndim != 2:
+            raise ValueError("Inputs and labels must have matching, nonzero lengths and 2D labels")
+
+        mistake_indices: list[int] = []
+        for start in range(0, len(x), batch_size):
+            y_batch = y[start:start + batch_size]
+            predictions = self.predict(x[start:start + batch_size])
+            if predictions.shape != y_batch.shape:
+                raise ValueError("Predictions and labels must have matching shapes")
+
+            if predictions.shape[1] == 1:
+                true_labels = y_batch[:, 0]
+                if not np.all((true_labels == 0) | (true_labels == 1)):
+                    raise ValueError("Binary labels must be 0 or 1")
+                predicted_labels = (predictions[:, 0] >= 0.5).astype(np.int64)
+                true_labels = true_labels.astype(np.int64)
+            else:
+                true_labels = np.argmax(y_batch, axis=1)
+                predicted_labels = np.argmax(predictions, axis=1)
+
+            batch_mistakes = np.flatnonzero(predicted_labels != true_labels)
+            mistake_indices.extend((start + batch_mistakes).tolist())
+
+        return np.asarray(mistake_indices, dtype=np.int64)
+
+
+    def show_misclassified_image(
+            self,
+            x: np.ndarray,
+            y: np.ndarray,
+            image_ids: np.ndarray | None = None,
+            batch_size: int = 1024,
+            mistake_number: int = 0,
+            ) -> int | None:
+        """Display one misclassified image and return its dataset index."""
+        mistake_indices = self.find_misclassified_indices(x, y, batch_size=batch_size)
+        if len(mistake_indices) == 0:
+            print("No misclassified images found.")
+            return None
+        if not 0 <= mistake_number < len(mistake_indices):
+            raise ValueError("mistake_number must select one of the misclassified images")
+
+        sample_index = int(mistake_indices[mistake_number])
+        prediction = self.predict(x[sample_index:sample_index + 1])
+
+        if prediction.shape[1] == 1:
+            true_label = int(y[sample_index, 0])
+            predicted_label = int(prediction[0, 0] >= 0.5)
+            confidence = float(prediction[0, 0])
+            label_text = f"true={true_label}, predicted={predicted_label}, p={confidence:.3f}"
+        else:
+            true_label = int(np.argmax(y[sample_index]))
+            predicted_label = int(np.argmax(prediction[0]))
+            confidence = float(np.max(prediction[0]))
+            label_text = f"true={true_label}, predicted={predicted_label}, confidence={confidence:.3f}"
+
+        image = x[sample_index]
+        if image.ndim == 3 and image.shape[0] in (1, 3):
+            image = np.transpose(image, (1, 2, 0))
+
+        import matplotlib.pyplot as plt
+
+        plt.imshow(np.squeeze(image), cmap="gray" if image.shape[-1] == 1 else None)
+        title = f"index={sample_index}, {label_text}"
+        if image_ids is not None:
+            title = f"{image_ids[sample_index]} | {title}"
+        plt.title(title)
+        plt.axis("off")
+        plt.show()
+
+        return sample_index
+
+
     def train(
             self,
             x_train: np.ndarray,
@@ -324,7 +407,7 @@ def cce_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
 # ADD REGULARIZATION !!!
 
 if __name__ == "__main__":
-    np.random.seed(0)
+    np.random.seed(1)
 
     X_train, y_train, image_ids = process_data(max_samples=32, shuffle=True)
 
@@ -401,3 +484,7 @@ if __name__ == "__main__":
     print(data.confusion_matrix)
 
     print(67*"=", "\n")
+
+    bad_index = model.show_misclassified_image(X_train, y_train, image_ids, batch_size=8)
+    if bad_index is not None:
+        print(f"First misclassified image index: {bad_index}")

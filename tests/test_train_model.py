@@ -236,6 +236,16 @@ def test_model_calculates_binary_confusion_matrix_across_batches():
     assert matrix.dtype == np.int64
 
 
+def test_model_finds_binary_misclassified_indices_across_batches():
+    model = Model()
+    predictions = np.array([[0.1], [0.8], [0.6], [0.2]])
+    labels = np.array([[0.0], [0.0], [1.0], [1.0]])
+
+    mistake_indices = model.find_misclassified_indices(predictions, labels, batch_size=2)
+
+    np.testing.assert_array_equal(mistake_indices, [1, 3])
+
+
 def test_model_calculates_multiclass_confusion_matrix():
     model = Model()
     predictions = np.array([
