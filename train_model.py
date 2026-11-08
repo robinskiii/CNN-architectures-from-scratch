@@ -407,7 +407,7 @@ def cce_derivative(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
 # ADD REGULARIZATION !!!
 
 if __name__ == "__main__":
-    np.random.seed(1)
+    np.random.seed(5)
 
     X_train, y_train, image_ids = process_data(max_samples=32, shuffle=True)
 
@@ -458,7 +458,7 @@ if __name__ == "__main__":
     data = model.train(
         X_train,
         y_train,
-        epochs=30,
+        epochs=22,
         learning_rate=0.01,
         batch_size=8,
         augment=False,
@@ -488,3 +488,5 @@ if __name__ == "__main__":
     bad_index = model.show_misclassified_image(X_train, y_train, image_ids, batch_size=8)
     if bad_index is not None:
         print(f"First misclassified image index: {bad_index}")
+
+    print(67*"=", "\n")

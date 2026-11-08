@@ -1,7 +1,11 @@
+from tkinter import Image
 from abc import abstractmethod
+from typing import cast
 
 import numpy as np
 
+type Shape = int | tuple[int, ...]
+type ImageShape = tuple[int, int, int]
 
 class Layer:
     """
@@ -18,7 +22,7 @@ class Layer:
     input: np.ndarray
     output: np.ndarray
 
-    def __init__(self, input_shape: int | tuple, output_shape: int | tuple) -> None:
+    def __init__(self, input_shape: Shape, output_shape: Shape) -> None:
         self.input_shape = input_shape
         self.output_shape = output_shape
 
@@ -163,9 +167,6 @@ class Convolution(Layer):
         padding: int          (calculated such that output has same dimensions as input)
 
     """
-    input_shape: tuple[int, int, int]
-    output_shape: tuple[int, int, int]
-
     input: np.ndarray
     input_padded: np.ndarray
     output: np.ndarray
@@ -219,7 +220,7 @@ class Convolution(Layer):
         )
 
         # Initialising output tensor to reduce compute (avoiding .append())
-        _, out_height, out_width = self.output_shape
+        _, out_height, out_width = cast(ImageShape, self.output_shape)
         self.output = np.zeros((batch_size, self.filters, out_height, out_width))
 
         # Convolution: iterating over each pixel
@@ -240,7 +241,7 @@ class Convolution(Layer):
         return self.output
 
     def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
-        _, out_height, out_width = self.output_shape
+        _, out_height, out_width = cast(ImageShape, self.output_shape)
 
         # Initialising gradients
         weights_error = np.zeros_like(self.weights) # same shape as weights tensor
@@ -289,9 +290,6 @@ class MaxPooling(Layer):
     Attributes:
         pool_size: int   (default = 2 (for 2x2 windows))
     """
-    input_shape: tuple[int, int, int]
-    output_shape: tuple[int, int, int]
-
     pool_size: int
 
     input: np.ndarray
@@ -315,7 +313,7 @@ class MaxPooling(Layer):
     def forward(self, input_data: np.ndarray) -> np.ndarray:
         self.input = input_data
         batch_size, channels, in_height, in_width = input_data.shape
-        _, out_height, out_width = self.output_shape
+        _, out_height, out_width = cast(ImageShape, self.output_shape)
 
         # if padding is needed (when pool size doesn't divide input dimension)
         pad_height = (out_height * self.pool_size) - in_height
@@ -344,8 +342,8 @@ class MaxPooling(Layer):
         return self.output
 
     def backward(self, output_error: np.ndarray, learning_rate: float) -> np.ndarray:
-        _, out_height, out_width = self.output_shape
-        _, in_height, in_width = self.input_shape
+        _, out_height, out_width = cast(ImageShape, self.output_shape)
+        _, in_height, in_width = cast(ImageShape, self.input_shape)
 
         input_padded_error = np.zeros_like(self.input_padded)
 
