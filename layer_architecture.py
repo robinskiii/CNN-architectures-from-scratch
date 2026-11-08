@@ -1,4 +1,3 @@
-from tkinter import Image
 from abc import abstractmethod
 from typing import cast
 
