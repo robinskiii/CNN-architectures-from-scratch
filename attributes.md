@@ -1,4 +1,4 @@
-## attributes:
+## CelebA Binary Attributes (in alphabetical order):
 
 - 5_o_Clock_Shadow
 - Arched_Eyebrows
